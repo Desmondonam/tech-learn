@@ -18,7 +18,10 @@ model User {
   joinDate           DateTime                 @default(now())
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
-  verificationTokens EmailVerificationToken[]
+  verificationTokens    EmailVerificationToken[]
+  enrollments           Enrollment[]
+  assignmentSubmissions AssignmentSubmission[]
+  challengeSubmissions  ChallengeSubmission[]
 }
 
 model EmailVerificationToken {
@@ -28,4 +31,42 @@ model EmailVerificationToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model Enrollment {
+  id               String   @id @default(cuid())
+  userId           String
+  courseId         String
+  completedModules Int      @default(0)
+  enrolledAt       DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+model AssignmentSubmission {
+  id             String    @id @default(cuid())
+  userId         String
+  assignmentId   String
+  status         String    @default("pending")
+  grade          Int?
+  feedback       String?
+  submittedAt    DateTime?
+  submissionText String?
+  createdAt      DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assignmentId])
+}
+
+model ChallengeSubmission {
+  id          String   @id @default(cuid())
+  userId      String
+  challengeId String
+  solved      Boolean  @default(false)
+  score       Int?
+  submittedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
 }

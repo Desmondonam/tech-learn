@@ -1,33 +1,98 @@
+import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import { useApp, COURSES, MODULES } from '../lib/AppContext';
+import { useApp, COURSES, ASSIGNMENTS, CODING_CHALLENGES } from '../lib/AppContext';
 import Link from 'next/link';
 
-export default function DashboardPage() {
-  const { currentUser, assignments, challenges, webinars, notifications } = useApp();
-  const isAdmin = currentUser?.role === 'admin';
+interface Enrollment { courseId: string; completedModules: number; }
+interface Submission { assignmentId: string; status: string; grade?: number; feedback?: string; submittedAt?: string; }
+interface ChallengeEntry { challengeId: string; solved: boolean; score?: number; }
+interface DashboardData { enrollments: Enrollment[]; submissions: Submission[]; challengeSubmissions: ChallengeEntry[]; }
 
-  const enrolledCourses = COURSES.filter(c => c.enrolled);
-  const pendingAssignments = assignments.filter(a => a.status === 'pending');
+const TAG_META: { tag: string; label: string; color: string }[] = [
+  { tag: 'arrays',              label: 'Arrays & Hash Maps',    color: '#38bdf8' },
+  { tag: 'recursion',           label: 'Recursion',             color: '#a78bfa' },
+  { tag: 'dynamic-programming', label: 'Dynamic Programming',   color: '#fbbf24' },
+  { tag: 'window-functions',    label: 'SQL / Window Functions', color: '#34d399' },
+  { tag: 'graphs',              label: 'Graph Algorithms',      color: '#f87171' },
+];
+
+export default function DashboardPage() {
+  const { currentUser, webinars } = useApp();
+  const isAdmin = currentUser?.role === 'admin';
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/user/dashboard')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setData(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Merge real enrollment data with mock course catalog
+  const enrolledCourses = data
+    ? COURSES.filter(c => data.enrollments.some(e => e.courseId === c.id)).map(c => {
+        const enr = data.enrollments.find(e => e.courseId === c.id)!;
+        return { ...c, completedModules: enr.completedModules };
+      })
+    : [];
+
+  // Build user-specific assignment list from real submissions
+  const userAssignments = data
+    ? ASSIGNMENTS.map(a => {
+        const sub = data.submissions.find(s => s.assignmentId === a.id);
+        if (!sub) return null;
+        return { ...a, status: sub.status as typeof a.status, grade: sub.grade ?? undefined, submittedAt: sub.submittedAt ?? undefined };
+      }).filter((a): a is NonNullable<typeof a> => a !== null)
+    : [];
+
+  // Build user-specific challenge list
+  const userChallenges = CODING_CHALLENGES.map(c => {
+    const sub = data?.challengeSubmissions.find(s => s.challengeId === c.id);
+    return { ...c, solved: sub?.solved ?? false, score: sub?.score ?? undefined };
+  });
+
+  const pendingAssignments = userAssignments.filter(a => a.status === 'pending');
+  const solvedChallenges = userChallenges.filter(c => c.solved);
+  const gradedSubmissions = userAssignments.filter(a => a.grade !== undefined);
+  const avgGrade = gradedSubmissions.length > 0
+    ? Math.round(gradedSubmissions.reduce((s, a) => s + (a.grade! / a.maxGrade) * 100, 0) / gradedSubmissions.length)
+    : null;
+
+  const codingStrengths = TAG_META.map(({ tag, label, color }) => {
+    const tagged = userChallenges.filter(c => c.tags?.includes(tag));
+    const score = tagged.length > 0
+      ? Math.round(tagged.filter(c => c.solved).reduce((sum, c) => sum + ((c.score ?? 0) / c.maxScore) * 100, 0) / tagged.length)
+      : 0;
+    return { label, score, color };
+  });
+
   const upcomingWebinars = webinars.slice(0, 3);
-  const solvedChallenges = challenges.filter(c => c.solved);
-  const avgGrade = Math.round(
-    assignments.filter(a => a.grade !== undefined).reduce((s, a) => s + (a.grade! / a.maxGrade) * 100, 0) /
-    assignments.filter(a => a.grade !== undefined).length
-  );
 
   const STATS = isAdmin
     ? [
-        { label: 'Total Students', value: '4', icon: '👨‍🎓', color: '#38bdf8', sub: '+1 this month' },
-        { label: 'Active Courses', value: '3', icon: '📚', color: '#34d399', sub: 'across all students' },
-        { label: 'Pending Grades', value: assignments.filter(a => a.status === 'submitted').length.toString(), icon: '📝', color: '#fbbf24', sub: 'awaiting review' },
-        { label: 'Upcoming Sessions', value: webinars.length.toString(), icon: '📅', color: '#a78bfa', sub: 'this month' },
+        { label: 'Active Courses', value: '4', icon: '📚', color: '#38bdf8', sub: 'in catalog' },
+        { label: 'Total Challenges', value: CODING_CHALLENGES.length.toString(), icon: '⚡', color: '#34d399', sub: 'available' },
+        { label: 'Upcoming Sessions', value: upcomingWebinars.length.toString(), icon: '📅', color: '#a78bfa', sub: 'this month' },
+        { label: 'Total Assignments', value: ASSIGNMENTS.length.toString(), icon: '📝', color: '#fbbf24', sub: 'in catalog' },
       ]
     : [
-        { label: 'Courses Enrolled', value: enrolledCourses.length.toString(), icon: '📚', color: '#38bdf8', sub: 'active' },
-        { label: 'Avg. Grade', value: `${avgGrade}%`, icon: '🏆', color: '#34d399', sub: 'across graded work' },
-        { label: 'Due This Week', value: pendingAssignments.length.toString(), icon: '⏰', color: '#fbbf24', sub: 'assignments' },
-        { label: 'Challenges Solved', value: `${solvedChallenges.length}/${challenges.length}`, icon: '⚡', color: '#a78bfa', sub: 'coding problems' },
+        { label: 'Courses Enrolled', value: loading ? '…' : enrolledCourses.length.toString(), icon: '📚', color: '#38bdf8', sub: 'active' },
+        { label: 'Avg. Grade', value: loading ? '…' : avgGrade !== null ? `${avgGrade}%` : '—', icon: '🏆', color: '#34d399', sub: avgGrade !== null ? 'across graded work' : 'no grades yet' },
+        { label: 'Due This Week', value: loading ? '…' : pendingAssignments.length.toString(), icon: '⏰', color: '#fbbf24', sub: 'assignments' },
+        { label: 'Challenges Solved', value: loading ? '…' : `${solvedChallenges.length}/${userChallenges.length}`, icon: '⚡', color: '#a78bfa', sub: 'coding problems' },
       ];
+
+  const emptyState = (icon: string, message: string, linkHref: string, linkLabel: string) => (
+    <div style={{ textAlign: 'center', padding: '32px 16px', color: '#475569' }}>
+      <div style={{ fontSize: '36px', marginBottom: '10px' }}>{icon}</div>
+      <div style={{ fontSize: '13px', marginBottom: '14px' }}>{message}</div>
+      <Link href={linkHref}>
+        <button className="btn-primary" style={{ fontSize: '12px', padding: '8px 16px' }}>{linkLabel}</button>
+      </Link>
+    </div>
+  );
 
   return (
     <Layout title="Dashboard">
@@ -49,14 +114,22 @@ export default function DashboardPage() {
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '15px', marginBottom: isAdmin ? '0' : '16px' }}>
             {isAdmin
-              ? 'You have ' + assignments.filter(a => a.status === 'submitted').length + ' submissions awaiting grading and ' + upcomingWebinars.length + ' upcoming sessions.'
-              : `You have ${pendingAssignments.length} pending assignment${pendingAssignments.length !== 1 ? 's' : ''}. Keep up the great work!`
+              ? `Managing ${COURSES.length} courses and ${ASSIGNMENTS.length} assignments.`
+              : enrolledCourses.length === 0
+                ? "You haven't enrolled in any courses yet. Start your learning journey!"
+                : `You have ${pendingAssignments.length} pending assignment${pendingAssignments.length !== 1 ? 's' : ''}. Keep up the great work!`
             }
           </p>
           {!isAdmin && (
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <Link href="/courses"><button className="btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>Continue Learning →</button></Link>
-              <Link href="/playground"><button className="btn-secondary" style={{ fontSize: '13px', padding: '8px 16px' }}>Open Playground</button></Link>
+              <Link href="/courses">
+                <button className="btn-primary" style={{ fontSize: '13px', padding: '8px 16px' }}>
+                  {enrolledCourses.length === 0 ? 'Browse Courses →' : 'Continue Learning →'}
+                </button>
+              </Link>
+              <Link href="/playground">
+                <button className="btn-secondary" style={{ fontSize: '13px', padding: '8px 16px' }}>Open Playground</button>
+              </Link>
             </div>
           )}
         </div>
@@ -82,29 +155,35 @@ export default function DashboardPage() {
           <div className="glass-card" style={{ padding: '22px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '16px', fontWeight: 700, color: '#f0f6ff' }}>Course Progress</h2>
-              <Link href="/courses"><span style={{ fontSize: '12px', color: '#38bdf8', cursor: 'pointer' }}>View all →</span></Link>
+              <Link href="/courses"><span style={{ fontSize: '12px', color: '#38bdf8', cursor: 'pointer' }}>Browse all →</span></Link>
             </div>
-            {enrolledCourses.map(course => {
-              const pct = Math.round(((course.completedModules || 0) / course.modules) * 100);
-              return (
-                <div key={course.id} style={{ marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '18px' }}>{course.icon}</span>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>{course.title}</span>
+            {loading ? (
+              <div style={{ color: '#475569', fontSize: '13px', textAlign: 'center', padding: '24px' }}>Loading…</div>
+            ) : enrolledCourses.length === 0 ? (
+              emptyState('📚', 'No courses enrolled yet.', '/courses', 'Browse Courses →')
+            ) : (
+              enrolledCourses.map(course => {
+                const pct = Math.round(((course.completedModules || 0) / course.modules) * 100);
+                return (
+                  <div key={course.id} style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '18px' }}>{course.icon}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>{course.title}</span>
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: course.color }}>{pct}%</span>
                     </div>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: course.color }}>{pct}%</span>
+                    <div className="progress-bar" style={{ height: '6px' }}>
+                      <div className="progress-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${course.color}, ${course.color}99)` }} />
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>{course.completedModules}/{course.modules} modules</div>
                   </div>
-                  <div className="progress-bar" style={{ height: '6px' }}>
-                    <div className="progress-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${course.color}, ${course.color}99)` }} />
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>{course.completedModules}/{course.modules} modules</div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
-          {/* Upcoming Webinars */}
+          {/* Upcoming Sessions */}
           <div className="glass-card" style={{ padding: '22px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '16px', fontWeight: 700, color: '#f0f6ff' }}>Upcoming Sessions</h2>
@@ -137,59 +216,66 @@ export default function DashboardPage() {
           {/* Recent Assignments */}
           <div className="glass-card" style={{ padding: '22px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '16px', fontWeight: 700, color: '#f0f6ff' }}>Recent Assignments</h2>
+              <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '16px', fontWeight: 700, color: '#f0f6ff' }}>My Assignments</h2>
               <Link href="/assignments"><span style={{ fontSize: '12px', color: '#38bdf8', cursor: 'pointer' }}>View all →</span></Link>
             </div>
-            {assignments.slice(0, 4).map(a => {
-              const statusStyle: Record<string, string> = {
-                graded: 'badge-success', submitted: 'badge-info', pending: 'badge-warning', late: 'badge-danger',
-              };
-              return (
-                <div key={a.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)',
-                }}>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>{a.title}</div>
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>Due {new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+            {loading ? (
+              <div style={{ color: '#475569', fontSize: '13px', textAlign: 'center', padding: '24px' }}>Loading…</div>
+            ) : userAssignments.length === 0 ? (
+              emptyState('📝', 'No assignments yet. Enroll in a course to get started.', '/courses', 'Browse Courses →')
+            ) : (
+              userAssignments.slice(0, 4).map(a => {
+                const statusStyle: Record<string, string> = { graded: 'badge-success', submitted: 'badge-info', pending: 'badge-warning', late: 'badge-danger' };
+                return (
+                  <div key={a.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0' }}>{a.title}</div>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>Due {new Date(a.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {a.grade !== undefined && (
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: a.grade >= 90 ? '#34d399' : a.grade >= 75 ? '#fbbf24' : '#f87171' }}>
+                          {a.grade}%
+                        </span>
+                      )}
+                      <span className={`badge ${statusStyle[a.status]}`}>{a.status}</span>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {a.grade !== undefined && (
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: a.grade >= 90 ? '#34d399' : a.grade >= 75 ? '#fbbf24' : '#f87171' }}>
-                        {a.grade}%
-                      </span>
-                    )}
-                    <span className={`badge ${statusStyle[a.status]}`}>{a.status}</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
-          {/* GitHub Challenge Strengths */}
+          {/* Coding Strengths */}
           <div className="glass-card" style={{ padding: '22px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '16px', fontWeight: 700, color: '#f0f6ff' }}>Coding Strengths</h2>
               <Link href="/challenges"><span style={{ fontSize: '12px', color: '#38bdf8', cursor: 'pointer' }}>View all →</span></Link>
             </div>
-            {[
-              { label: 'Arrays & Hash Maps', score: 95, color: '#38bdf8' },
-              { label: 'SQL Queries', score: 90, color: '#34d399' },
-              { label: 'Recursion', score: 82, color: '#a78bfa' },
-              { label: 'Dynamic Programming', score: 65, color: '#fbbf24' },
-              { label: 'Graph Algorithms', score: 40, color: '#f87171' },
-            ].map((skill, i) => (
-              <div key={i} style={{ marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>{skill.label}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: skill.color }}>{skill.score}%</span>
+            {loading ? (
+              <div style={{ color: '#475569', fontSize: '13px', textAlign: 'center', padding: '24px' }}>Loading…</div>
+            ) : solvedChallenges.length === 0 ? (
+              emptyState('⚡', 'Solve coding challenges to build your strength profile.', '/challenges', 'Start Challenges →')
+            ) : (
+              codingStrengths.map((skill, i) => (
+                <div key={i} style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>{skill.label}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: skill.score > 0 ? skill.color : '#475569' }}>
+                      {skill.score > 0 ? `${skill.score}%` : '—'}
+                    </span>
+                  </div>
+                  <div className="progress-bar" style={{ height: '5px' }}>
+                    <div className="progress-fill" style={{ width: `${skill.score}%`, background: skill.color }} />
+                  </div>
                 </div>
-                <div className="progress-bar" style={{ height: '5px' }}>
-                  <div className="progress-fill" style={{ width: `${skill.score}%`, background: skill.color }} />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
+
         </div>
       </div>
 
