@@ -4,6 +4,25 @@ import { useApp } from '../lib/AppContext';
 import Head from 'next/head';
 import Link from 'next/link';
 
+const LOGIN_OPTIONS = [
+  {
+    role: 'Student',
+    icon: '👨‍🎓',
+    email: 'student@techlearn.com',
+    password: 'Student@2026',
+    color: '#38bdf8',
+    description: 'Access courses, assignments & challenges',
+  },
+  {
+    role: 'Admin',
+    icon: '👩‍🏫',
+    email: 'desmondonam@gmail.com',
+    password: 'DesmondLMS@2026',
+    color: '#a78bfa',
+    description: 'Manage students, grades & sessions',
+  },
+];
+
 export default function LoginPage() {
   const { login, currentUser, sessionLoaded } = useApp();
   const router = useRouter();
@@ -29,9 +48,20 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  const quickLogin = (e: string) => {
+  const fillCredentials = (e: string, p: string) => {
     setEmail(e);
-    setPassword('demo');
+    setPassword(p);
+    setError('');
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#94a3b8',
+    marginBottom: '6px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
   };
 
   return (
@@ -56,6 +86,7 @@ export default function LoginPage() {
         <div style={{ position: 'absolute', bottom: '-10%', right: '-5%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(167,139,250,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
         <div style={{ width: '100%', maxWidth: '420px', animation: 'fadeIn 0.5s ease' }}>
+
           {/* Logo */}
           <div style={{ textAlign: 'center', marginBottom: '40px' }}>
             <div style={{
@@ -87,9 +118,9 @@ export default function LoginPage() {
 
             <form onSubmit={handleLogin}>
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Email</label>
+                <label style={labelStyle}>Email</label>
                 <input
-                  type="text"
+                  type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="your@email.com"
@@ -98,7 +129,7 @@ export default function LoginPage() {
                 />
               </div>
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Password</label>
+                <label style={labelStyle}>Password</label>
                 <input
                   type="password"
                   value={password}
@@ -111,9 +142,13 @@ export default function LoginPage() {
 
               {error && (
                 <div style={{
-                  background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)',
-                  borderRadius: '10px', padding: '10px 14px', marginBottom: '16px',
-                  fontSize: '13px', color: '#f87171',
+                  background: 'rgba(248,113,113,0.08)',
+                  border: '1px solid rgba(248,113,113,0.2)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  fontSize: '13px',
+                  color: '#f87171',
                 }}>
                   {error}
                 </div>
@@ -130,37 +165,51 @@ export default function LoginPage() {
             </form>
 
             {/* Register link */}
-            <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
+            <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', marginBottom: '24px' }}>
               Don&apos;t have an account?{' '}
               <Link href="/register" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 600 }}>
                 Create one
               </Link>
             </p>
 
-            {/* Quick access */}
+            {/* Login role options */}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px' }}>
-              <p style={{ fontSize: '11px', color: '#475569', textAlign: 'center', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Quick Demo Access</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {[
-                  { label: '👨‍🎓 Student — Alex Johnson', email: 'alex@student.com', color: '#38bdf8' },
-                  { label: '👩‍🎓 Student — Maria Chen', email: 'maria@student.com', color: '#34d399' },
-                  { label: '👩‍🏫 Tutor / Admin', email: 'admin@techlearn.com', color: '#a78bfa' },
-                ].map(d => (
+              <p style={{ fontSize: '11px', color: '#475569', textAlign: 'center', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                Sign in as
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {LOGIN_OPTIONS.map(opt => (
                   <button
-                    key={d.email}
-                    onClick={() => quickLogin(d.email)}
+                    key={opt.role}
+                    onClick={() => fillCredentials(opt.email, opt.password)}
                     style={{
-                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
-                      borderRadius: '9px', padding: '10px 14px', color: '#94a3b8',
-                      cursor: 'pointer', fontSize: '13px', textAlign: 'left',
-                      transition: 'all 0.15s',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      flex: 1,
+                      background: email === opt.email ? `${opt.color}12` : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${email === opt.email ? opt.color : 'rgba(255,255,255,0.08)'}`,
+                      borderRadius: '12px',
+                      padding: '14px 10px',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.18s',
                     }}
-                    onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = d.color; (e.target as HTMLElement).style.color = d.color; }}
-                    onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'; (e.target as HTMLElement).style.color = '#94a3b8'; }}
+                    onMouseEnter={e => {
+                      if (email !== opt.email) {
+                        (e.currentTarget as HTMLElement).style.borderColor = opt.color;
+                        (e.currentTarget as HTMLElement).style.background = `${opt.color}0a`;
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (email !== opt.email) {
+                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
+                      }
+                    }}
                   >
-                    <span>{d.label}</span>
-                    <span style={{ fontSize: '11px', opacity: 0.5 }}>click to fill</span>
+                    <div style={{ fontSize: '22px', marginBottom: '6px' }}>{opt.icon}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: email === opt.email ? opt.color : '#e2e8f0', marginBottom: '3px' }}>
+                      {opt.role}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.4 }}>{opt.description}</div>
                   </button>
                 ))}
               </div>
