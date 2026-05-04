@@ -1,26 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useApp } from '../lib/AppContext';
 import Head from 'next/head';
+import Link from 'next/link';
 
 export default function LoginPage() {
-  const { login } = useApp();
+  const { login, currentUser, sessionLoaded } = useApp();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (sessionLoaded && currentUser) router.replace('/dashboard');
+  }, [sessionLoaded, currentUser, router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    await new Promise(r => setTimeout(r, 800));
-    const success = login(email, password);
-    if (success) {
+    const result = await login(email, password);
+    if (result.ok) {
       router.push('/dashboard');
     } else {
-      setError('Invalid credentials. Try: alex@student.com or admin@techlearn.com (any password)');
+      setError(result.error || 'Login failed. Please try again.');
     }
     setLoading(false);
   };
@@ -124,6 +128,14 @@ export default function LoginPage() {
                 {loading ? <><span className="spinner" /> Signing in...</> : 'Sign In →'}
               </button>
             </form>
+
+            {/* Register link */}
+            <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', marginBottom: '20px' }}>
+              Don&apos;t have an account?{' '}
+              <Link href="/register" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 600 }}>
+                Create one
+              </Link>
+            </p>
 
             {/* Quick access */}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px' }}>

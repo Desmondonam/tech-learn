@@ -26,18 +26,18 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function Layout({ children, title }: { children: ReactNode; title?: string }) {
-  const { currentUser, logout, notifications } = useApp();
+  const { currentUser, sessionLoaded, logout, notifications } = useApp();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) {
+    if (sessionLoaded && !currentUser) {
       router.replace('/');
     }
-  }, [currentUser, router]);
+  }, [sessionLoaded, currentUser, router]);
 
-  if (!currentUser) return null;
+  if (!sessionLoaded || !currentUser) return null;
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const navItems = NAV_ITEMS.filter(item => item.roles.includes(currentUser.role));

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type UserRole = 'student' | 'admin';
 
@@ -235,7 +235,8 @@ export const ADMIN_STUDENTS = MOCK_USERS.filter(u => u.role === 'student');
 
 interface AppContextValue {
   currentUser: User | null;
-  login: (email: string, password: string) => boolean;
+  sessionLoaded: boolean;
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   assignments: Assignment[];
   submitAssignment: (id: string, text: string) => void;
@@ -259,6 +260,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [assignments, setAssignments] = useState<Assignment[]>(ASSIGNMENTS);
   const [conversations, setConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
   const [webinars, setWebinars] = useState<Webinar[]>(WEBINARS);
@@ -274,16 +276,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     { id: 'n4', title: 'Assignment Due Soon', message: '"Complex JOIN Queries" is due in 3 days', type: 'warning', read: false, timestamp: '2025-02-22T10:00:00' },
   ]);
 
-  const login = (email: string, _password: string): boolean => {
-    const user = MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (user) {
-      setCurrentUser(user);
-      return true;
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.user) setCurrentUser(data.user); })
+      .catch(() => {})
+      .finally(() => setSessionLoaded(true));
+  }, []);
+
+  const login = async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { ok: false, error: data.error };
+      setCurrentUser(data.user);
+      return { ok: true };
+    } catch {
+      return { ok: false, error: 'Network error. Please try again.' };
     }
-    return false;
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    setCurrentUser(null);
+  };
 
   const submitAssignment = (id: string, text: string) => {
     setAssignments(prev => prev.map(a =>
@@ -350,7 +370,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, login, logout,
+      currentUser, sessionLoaded, login, logout,
       assignments, submitAssignment,
       conversations, sendMessage,
       webinars, registerWebinar,
