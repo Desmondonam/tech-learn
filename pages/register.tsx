@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -119,7 +117,7 @@ export default function RegisterPage() {
                   {success}
                 </p>
                 <p style={{ color: '#475569', fontSize: '13px', marginBottom: '20px' }}>
-                  Didn't receive it? Check your spam folder or{' '}
+                  Didn&apos;t receive it? Check your spam folder or{' '}
                   <button
                     onClick={() => { setSuccess(''); setForm({ name: '', email: '', password: '', confirm: '' }); }}
                     style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '13px', padding: 0 }}

@@ -11,7 +11,6 @@ export default function AssignmentsPage() {
 
   const isAdmin = currentUser?.role === 'admin';
   const filtered = filter === 'all' ? assignments : assignments.filter(a => a.status === filter);
-  const selected = assignments.find(a => a.id === selectedAssignment);
 
   const handleSubmit = () => {
     if (!selectedAssignment || !submissionText.trim()) return;
@@ -190,7 +189,7 @@ export default function AssignmentsPage() {
               <div style={{ textAlign: 'center', padding: '60px', color: '#475569' }}>
                 <div style={{ fontSize: '48px', marginBottom: '12px' }}>📝</div>
                 <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '6px' }}>No assignments found</div>
-                <div style={{ fontSize: '13px' }}>Nothing in "{filter}" category</div>
+                <div style={{ fontSize: '13px' }}>Nothing in &quot;{filter}&quot; category</div>
               </div>
             )}
           </div>

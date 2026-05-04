@@ -155,7 +155,7 @@ export default function FeedbackPage() {
                       </div>
                     </div>
                     <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: '6px' }}>{fb.courseName}</div>
-                    <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: 1.6 }}>"{fb.content}"</p>
+                    <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: 1.6 }}>&quot;{fb.content}&quot;</p>
                     <div style={{ fontSize: '10px', color: '#475569', marginTop: '6px' }}>
                       {new Date(fb.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
@@ -214,7 +214,7 @@ export default function FeedbackPage() {
                       {[1,2,3,4,5].map(s => <span key={s} style={{ fontSize: '14px', filter: fb.rating >= s ? 'none' : 'grayscale(1) opacity(0.3)' }}>⭐</span>)}
                     </div>
                   </div>
-                  <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.6, marginBottom: '8px' }}>"{fb.content}"</p>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.6, marginBottom: '8px' }}>&quot;{fb.content}&quot;</p>
                   <div style={{ fontSize: '11px', color: '#475569' }}>
                     {new Date(fb.submittedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   </div>

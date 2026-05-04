@@ -283,7 +283,7 @@ export default function AdminPage() {
               </div>
 
               {/* Module completion */}
-              <div className="glass-card" style={{ padding: '20px' }} style={{ gridColumn: '1 / -1' }}>
+              <div className="glass-card" style={{ padding: '20px', gridColumn: '1 / -1' }}>
                 <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: '15px', fontWeight: 700, color: '#f0f6ff', marginBottom: '16px' }}>Module Completion by Course</h3>
                 {COURSES.filter(c => c.enrolled).map(course => {
                   const pct = Math.round(((course.completedModules || 0) / course.modules) * 100);

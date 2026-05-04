@@ -5,7 +5,6 @@ export default function ChallengesPage() {
   const { challenges } = useApp();
 
   const solved = challenges.filter(c => c.solved);
-  const unsolved = challenges.filter(c => !c.solved);
   const avgScore = Math.round(solved.reduce((s, c) => s + ((c.score || 0) / c.maxScore) * 100, 0) / solved.length);
 
   const diffColor: Record<string, string> = { easy: '#34d399', medium: '#fbbf24', hard: '#f87171' };
@@ -141,7 +140,7 @@ export default function ChallengesPage() {
                     <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500, textTransform: 'capitalize' }}>
                       {skill.tag.replace(/-/g, ' ')}
                     </span>
-                    <div style={{ display: 'flex', align: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontSize: '11px', color: '#475569' }}>({skill.total} total)</span>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: skill.pct >= 80 ? '#34d399' : skill.pct >= 50 ? '#fbbf24' : '#f87171' }}>
                         {skill.pct}%
